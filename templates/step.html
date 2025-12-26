@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+  <img src="{{ url_for('static', filename=image) }}" alt="Christmas Clue" class="elf-image">
+  <div class="content">
+    <h2>{{ title }}</h2>
+    <p>
+      {{ lore }}
+    </p>
+
+    {% if hint %}
+    <div class="clue-box">
+      <p><strong>Your Hint:</strong></p>
+      <p>{{ hint }}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

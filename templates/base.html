@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title if page_title else 'Dias Epic Christmas Scavenger Hunt' }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div class="snowflakes" aria-hidden="true">
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+    <div class="snowflake">❅</div>
+    <div class="snowflake">❆</div>
+  </div>
+
+  <div class="container">
+    <header>
+      <h1>🎅 Epic Dias Family Christmas 🎄<br><span style="font-size: 0.6em">Gift Exchange of 2025</span></h1>
+    </header>
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+      <p>Made with ❤️ by the North Pole Tech Team</p>
+    </footer>
+  </div>
+</body>
+
+</html>

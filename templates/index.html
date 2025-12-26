@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Welcome Section (Local Only) -->
+<div id="welcome-section" class="card">
+  <img src="{{ url_for('static', filename='elf.png') }}" alt="Friendly Christmas Elf" class="elf-image">
+  <div class="content">
+    <h2>Hello There, Explorer!</h2>
+    <p>
+      Welcome to the <strong>Epic Dias Family Christmas Gift Exchange of 2025</strong>!
+    </p>
+    <p>
+      We are going to play a game to find our gifts. Join the session to sync up with everyone else!
+    </p>
+    <button onclick="enterGame()" class="btn">Join the Hunt! 🎁</button>
+  </div>
+</div>
+
+<!-- Game Section (Synced) -->
+<div id="game-section" class="card" style="display: none;">
+  <img src="{{ url_for('static', filename='elf.png') }}" alt="Elf" class="elf-image-small">
+
+  <!-- Phase: INPUT -->
+  <div id="phase-input" style="display: none;">
+    <h2><span id="cousin-name">Cousin</span>'s Turn!</h2>
+    <p>Please enter a <strong id="word-type" style="color: var(--christmas-red); font-size: 1.2em;">Noun</strong>:</p>
+    <div class="input-group">
+      <input type="text" id="word-input" placeholder="Type here..."
+        style="padding: 10px; font-size: 1.2rem; border-radius: 10px; border: 2px solid var(--christmas-green); width: 80%;">
+      <br>
+      <button onclick="submitWord()" class="btn" style="font-size: 1rem; padding: 0.5rem 2rem;">Submit</button>
+    </div>
+  </div>
+
+  <!-- Phase: HINT -->
+  <div id="phase-hint" style="display: none;">
+    <h2>Word Accepted!</h2>
+    <div class="clue-box">
+      <p><strong>Next Hint:</strong></p>
+      <p id="hint-text" style="font-size: 1.4rem;">...</p>
+    </div>
+    <p style="margin-top: 1rem; ont-style: italic; color: #666;">
+      Search for the QR code to unlock the next step!
+    </p>
+  </div>
+
+  <!-- Phase: COMPLETED -->
+  <div id="phase-completed" style="display: none;">
+    <h2>🎉 Hunt Completed! 🎉</h2>
+    <p>Here are the words you gathered along the way:</p>
+    <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+      <thead>
+        <tr style="background: var(--christmas-green); color: white;">
+          <th style="padding: 8px;">Cousin</th>
+          <th style="padding: 8px;">Type</th>
+          <th style="padding: 8px;">Word</th>
+        </tr>
+      </thead>
+      <tbody id="results-body">
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const API_URL = '/api';
+  let currentPhase = null;
+
+  function enterGame() {
+    document.getElementById('welcome-section').style.display = 'none';
+    document.getElementById('game-section').style.display = 'block';
+    // Start polling
+    setInterval(pollStatus, 1000); // Check every second
+    pollStatus(); // Immediate check
+  }
+
+  async function pollStatus() {
+    try {
+      const response = await fetch(`${API_URL}/status`);
+      const data = await response.json();
+      updateUI(data);
+    } catch (error) {
+      console.error('Error polling status:', error);
+    }
+  }
+
+  function updateUI(data) {
+    // Hide all phases first
+    document.getElementById('phase-input').style.display = 'none';
+    document.getElementById('phase-hint').style.display = 'none';
+    document.getElementById('phase-completed').style.display = 'none';
+
+    if (data.phase === 'INPUT') {
+      document.getElementById('phase-input').style.display = 'block';
+      document.getElementById('cousin-name').textContent = data.current_cousin;
+      document.getElementById('word-type').textContent = data.word_type;
+
+    } else if (data.phase === 'HINT') {
+      document.getElementById('phase-hint').style.display = 'block';
+      document.getElementById('hint-text').textContent = data.hint;
+
+    } else if (data.phase === 'COMPLETED') {
+      document.getElementById('phase-completed').style.display = 'block';
+      renderResults(data.results);
+    }
+  }
+
+  async function submitWord() {
+    const input = document.getElementById('word-input');
+    const word = input.value.trim();
+    if (!word) return alert('Please enter a word!');
+
+    try {
+      const response = await fetch(`${API_URL}/submit_word`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: word })
+      });
+      const result = await response.json();
+      if (result.success) {
+        input.value = ''; // Clear input
+        pollStatus(); // Immediate update
+      }
+    } catch (error) {
+      console.error('Error submitting word:', error);
+    }
+  }
+
+  function renderResults(results) {
+    const tbody = document.getElementById('results-body');
+    if (tbody.innerHTML.trim() !== '') return; // Don't re-render if already there
+
+    results.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${row.cousin}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${row.type}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: bold; color: var(--christmas-red);">${row.word}</td>
+            `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  {% if auto_join %}
+  window.addEventListener('load', function () {
+    console.log("Auto-joining game...");
+    enterGame();
+  });
+  {% endif %}
+</script>
+
+<style>
+  .elf-image-small {
+    max-width: 150px;
+    width: 100%;
+    height: auto;
+    border-radius: 15px;
+    margin-bottom: 1rem;
+  }
+</style>
+{% endblock %}
