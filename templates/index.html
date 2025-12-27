@@ -39,7 +39,7 @@
       <p><strong>Next Hint:</strong></p>
       <p id="hint-text" style="font-size: 1.4rem;">...</p>
     </div>
-    <p style="margin-top: 1rem; ont-style: italic; color: #666;">
+    <p style="margin-top: 1rem; font-style: italic; color: #666;">
       Search for the QR code to unlock the next step!
     </p>
   </div>
@@ -48,6 +48,14 @@
   <div id="phase-completed" style="display: none;">
     <h2>🎉 Hunt Completed! 🎉</h2>
     <p>Here are the words you gathered along the way:</p>
+
+    <!-- Story Section -->
+    <div id="story-container"
+      style="background-color: #fff8e1; border: 2px dashed var(--christmas-red); padding: 15px; margin: 15px 0; border-radius: 10px;">
+      <h3 style="color: var(--christmas-green); margin-top: 0;">A Christmas Tale</h3>
+      <p id="story-text" style="font-style: italic; white-space: pre-wrap; font-family: 'Georgia', serif;"></p>
+    </div>
+
     <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
       <thead>
         <tr style="background: var(--christmas-green); color: white;">
@@ -101,6 +109,23 @@
 
     } else if (data.phase === 'COMPLETED') {
       document.getElementById('phase-completed').style.display = 'block';
+
+      const storyContainer = document.getElementById('story-container');
+      const storyText = document.getElementById('story-text');
+
+      if (!data.story) {
+        // Loading State
+        storyText.innerHTML = `
+          <div style="text-align: center;">
+            <p style="font-size: 1.5rem; color: var(--christmas-green); margin-bottom: 20px;">Message is being delivered...</p>
+            <img src="{{ url_for('static', filename='santa_delivery.png') }}" alt="Santa Delivering Message" style="max-width: 100%; height: auto; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+          </div>
+        `;
+      } else {
+        // Story Loaded
+        storyText.innerHTML = data.story;
+      }
+
       renderResults(data.results);
     }
   }

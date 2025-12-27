@@ -217,3 +217,11 @@ footer {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
 }
+
+.highlight {
+  font-weight: bold;
+  color: var(--christmas-red);
+  background-color: rgba(255, 255, 0, 0.3);
+  padding: 0 4px;
+  border-radius: 4px;
+}
