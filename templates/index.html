@@ -20,21 +20,36 @@
 <div id="game-section" class="card" style="display: none;">
   <img src="{{ url_for('static', filename='elf.png') }}" alt="Elf" class="elf-image-small">
 
+  <!-- STORY SEGMENT VISUALIZER -->
+  <div id="segment-container"
+    style="background-color: #fff8e1; border: 2px dashed var(--christmas-red); padding: 15px; margin: 15px 0; border-radius: 10px; display:none;">
+    <h3 style="color: var(--christmas-green); margin-top: 0; font-size: 1.2rem;">The Story So Far:</h3>
+    <p id="segment-text" style="font-style: italic; font-family: 'Georgia', serif;"></p>
+    <div id="segment-loading" style="display: none; color: #666;">
+      <img src="{{ url_for('static', filename='santa_delivery.png') }}" alt="Loading"
+        style="width: 50px; vertical-align: middle;">
+      <em>The elves are writing...</em>
+    </div>
+  </div>
+
   <!-- Phase: INPUT -->
   <div id="phase-input" style="display: none;">
-    <h2><span id="cousin-name">Cousin</span>'s Turn!</h2>
-    <p>Please enter a <strong id="word-type" style="color: var(--christmas-red); font-size: 1.2em;">Noun</strong>:</p>
-    <div class="input-group">
-      <input type="text" id="word-input" placeholder="Type here..."
-        style="padding: 10px; font-size: 1.2rem; border-radius: 10px; border: 2px solid var(--christmas-green); width: 80%;">
-      <br>
-      <button onclick="submitWord()" class="btn" style="font-size: 1rem; padding: 0.5rem 2rem;">Submit</button>
+    <h2>Step <span id="step-number">...</span></h2>
+
+    <p style="color: #666; margin-bottom: 20px;">Use the boxes below to fill in the blanks. Everyone can type at the
+      same time!</p>
+
+    <!-- Dynamic Inputs Container -->
+    <div id="inputs-container"></div>
+
+    <div style="margin-top: 20px; font-weight: bold; color: var(--christmas-gold);">
+      ⏳ Wait for the Game Master to approve everyone's answers!
     </div>
   </div>
 
   <!-- Phase: HINT -->
   <div id="phase-hint" style="display: none;">
-    <h2>Word Accepted!</h2>
+    <h2>Step Complete!</h2>
     <div class="clue-box">
       <p><strong>Next Hint:</strong></p>
       <p id="hint-text" style="font-size: 1.4rem;">...</p>
@@ -72,7 +87,7 @@
 
 <script>
   const API_URL = '/api';
-  let currentPhase = null;
+  let isTyping = false;
 
   function enterGame() {
     document.getElementById('welcome-section').style.display = 'none';
@@ -98,10 +113,31 @@
     document.getElementById('phase-hint').style.display = 'none';
     document.getElementById('phase-completed').style.display = 'none';
 
+    // 1. Story Segment Logic
+    const segmentContainer = document.getElementById('segment-container');
+    const segmentText = document.getElementById('segment-text');
+    const segmentLoading = document.getElementById('segment-loading');
+
+    if (data.latest_segment || data.is_generating || data.story) {
+      segmentContainer.style.display = 'block';
+    }
+
+    if (data.is_generating) {
+      segmentText.style.display = 'none';
+      segmentLoading.style.display = 'block';
+    } else {
+      segmentLoading.style.display = 'none';
+      segmentText.style.display = 'block';
+      segmentText.innerHTML = data.latest_segment || "";
+    }
+
+    // 2. Phase Logic
     if (data.phase === 'INPUT') {
       document.getElementById('phase-input').style.display = 'block';
-      document.getElementById('cousin-name').textContent = data.current_cousin;
-      document.getElementById('word-type').textContent = data.word_type;
+      document.getElementById('step-number').textContent = data.step_number;
+
+      // Render Inputs
+      renderInputs(data.inputs);
 
     } else if (data.phase === 'HINT') {
       document.getElementById('phase-hint').style.display = 'block';
@@ -109,51 +145,92 @@
 
     } else if (data.phase === 'COMPLETED') {
       document.getElementById('phase-completed').style.display = 'block';
+      segmentContainer.style.display = 'none';
 
-      const storyContainer = document.getElementById('story-container');
       const storyText = document.getElementById('story-text');
-
-      if (!data.story) {
-        // Loading State
+      if (data.is_generating) {
         storyText.innerHTML = `
-          <div style="text-align: center;">
-            <p style="font-size: 1.5rem; color: var(--christmas-green); margin-bottom: 20px;">Message is being delivered...</p>
-            <img src="{{ url_for('static', filename='santa_delivery.png') }}" alt="Santa Delivering Message" style="max-width: 100%; height: auto; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
-          </div>
-        `;
+              <div style="text-align: center;">
+                <p style="font-size: 1.5rem; color: var(--christmas-green); margin-bottom: 20px;">Finishing the masterpiece...</p>
+                 <img src="{{ url_for('static', filename='santa_delivery.png') }}" alt="Santa Delivering Message" style="max-width: 100%; height: auto; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+              </div>
+            `;
       } else {
-        // Story Loaded
-        storyText.innerHTML = data.story;
+        storyText.innerHTML = data.story || data.full_story;
       }
 
       renderResults(data.results);
     }
   }
 
-  async function submitWord() {
-    const input = document.getElementById('word-input');
-    const word = input.value.trim();
-    if (!word) return alert('Please enter a word!');
+  function renderInputs(serverInputs) {
+    const container = document.getElementById('inputs-container');
 
+    // If count mismatches, rebuild entirely. Simple reconciliation.
+    if (container.children.length !== serverInputs.length) {
+      container.innerHTML = '';
+      serverInputs.forEach((inputState, idx) => {
+        const div = document.createElement('div');
+        div.className = 'input-card';
+        div.style.cssText = "background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #ddd; text-align: left;";
+
+        div.innerHTML = `
+                  <div style="font-weight: bold; color: var(--christmas-green); margin-bottom: 5px;">
+                      ${inputState.cousin}
+                  </div>
+                  <label style="font-size: 0.9rem; color: #666;">${inputState.label}</label>
+                  <input type="text" id="input-${idx}" 
+                      style="width: 100%; padding: 10px; font-size: 1.1rem; border: 2px solid #eee; border-radius: 5px; margin-top: 5px;"
+                      placeholder="Type a ${inputState.type}..."
+                  >
+              `;
+        container.appendChild(div);
+
+        // Attach listener
+        const inputEl = div.querySelector('input');
+        inputEl.addEventListener('input', (e) => {
+          handleInput(idx, e.target.value);
+        });
+      });
+    }
+
+    // Update values
+    serverInputs.forEach((inputState, idx) => {
+      const el = document.getElementById(`input-${idx}`);
+      if (el) {
+        // Only update if NOT focused, to allow smooth typing without overwrites
+        // OR if value is wildly different (maybe someone else finished it?)
+        if (document.activeElement !== el) {
+          el.value = inputState.value;
+        }
+      }
+    });
+  }
+
+  // Debounced Input Sender
+  let debounceTimer;
+  function handleInput(index, value) {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      sendUpdate(index, value);
+    }, 300); // 300ms debounce
+  }
+
+  async function sendUpdate(index, value) {
     try {
-      const response = await fetch(`${API_URL}/submit_word`, {
+      await fetch(`${API_URL}/update_input`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word: word })
+        body: JSON.stringify({ index: index, value: value })
       });
-      const result = await response.json();
-      if (result.success) {
-        input.value = ''; // Clear input
-        pollStatus(); // Immediate update
-      }
-    } catch (error) {
-      console.error('Error submitting word:', error);
+    } catch (err) {
+      console.error("Failed to sync input", err);
     }
   }
 
   function renderResults(results) {
     const tbody = document.getElementById('results-body');
-    if (tbody.innerHTML.trim() !== '') return; // Don't re-render if already there
+    if (tbody.innerHTML.trim() !== '') return;
 
     results.forEach(row => {
       const tr = document.createElement('tr');
@@ -168,7 +245,6 @@
 
   {% if auto_join %}
   window.addEventListener('load', function () {
-    console.log("Auto-joining game...");
     enterGame();
   });
   {% endif %}

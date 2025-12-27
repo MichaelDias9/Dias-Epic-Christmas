@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+  <h1>🎅 Admin Console 🎄</h1>
+
+  <div class="card" id="admin-panel">
+    <h2 style="color: var(--christmas-green);">Step <span id="status-step">1</span> Monitor</h2>
+
+    <div id="inputs-grid"
+      style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+      <!-- filled by JS -->
+    </div>
+
+    <div id="actions-area" style="margin-top: 30px; border-top: 2px dashed #ddd; padding-top: 20px;">
+      <button id="approve-btn" onclick="approveStep()" class="btn"
+        style="background-color: var(--christmas-green); border-color: white; font-size: 1.5rem; width: 100%;">
+        ✅ Approve All inputs & Next Step
+      </button>
+    </div>
+
+    <div style="margin-top: 2rem;">
+      <a href="/" target="_blank" style="color: var(--christmas-green);">Open Game View ⬈</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = '/api';
+
+  // Poll status every 1 second for live updates
+  setInterval(pollStatus, 1000);
+  pollStatus();
+
+  async function pollStatus() {
+    try {
+      const response = await fetch(`${API_URL}/status`);
+      const data = await response.json();
+      updateUI(data);
+    } catch (error) {
+      console.error('Error polling status:', error);
+    }
+  }
+
+  function updateUI(data) {
+    document.getElementById('status-step').textContent = data.step_number;
+
+    // Render Inputs Grid
+    const grid = document.getElementById('inputs-grid');
+
+    // If phase is not INPUT, maybe show message?
+    if (data.phase !== 'INPUT') {
+      grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #666;">Game is in ${data.phase} Phase. No active inputs.</div>`;
+      document.getElementById('approve-btn').disabled = true;
+      return;
+    }
+
+    document.getElementById('approve-btn').disabled = false;
+
+    // Render cards
+    if (data.inputs) {
+      // Rebuild simplistic to avoid diffing complexity for now
+      // Or simple diff: check length
+      const html = data.inputs.map(input => {
+        const isFilled = input.value && input.value.trim().length > 0;
+        const statusColor = isFilled ? '#e8f5e9' : '#ffebee';
+        const statusBorder = isFilled ? 'var(--christmas-green)' : '#ffcdd2';
+
+        return `
+                    <div style="background: ${statusColor}; border: 2px solid ${statusBorder}; padding: 10px; border-radius: 8px;">
+                        <div style="font-weight: bold; font-size: 0.9rem;">${input.cousin}</div>
+                        <div style="font-size: 0.8rem; color: #555; margin-bottom: 5px;">${input.label}</div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #333; min-height: 1.5em; background: rgba(255,255,255,0.5); padding: 5px; border-radius: 4px;">
+                            ${input.value || '<span style="color:#aaa;">...</span>'}
+                        </div>
+                    </div>
+                `;
+      }).join('');
+      grid.innerHTML = html;
+    }
+  }
+
+  async function approveStep() {
+    if (!confirm('Are you sure you want to approve all inputs and move to the next step?')) return;
+
+    const res = await fetch(`${API_URL}/admin/approve_step`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) {
+      alert("❌ " + data.error);
+    } else {
+      // success
+    }
+  }
+</script>
+{% endblock %}
